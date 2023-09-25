@@ -1,17 +1,22 @@
-$CVSSource = Import-Csv -Path "Z:\Kinzer_Directory\ADGetDisabledComputers\Source\UnsupportedOSmachines.csv"
+$CSVSource = Import-Csv -Path "PATH TO CSV FILE"
+# CSV Columns must be "Hostname" and OperatingSystem otherwies the script won't read the text.
+# There can be more columns but it only reads those two columns.
 [System.Collections.ArrayList]$DataCollector = @()
-$CSVExport = ".\Export"
 
 Function Get-ADEnabled {
     [CmdletBinding(DefaultParameterSetName='Hostname')]
     param(
         [parameter(Mandatory)]
-        [string] $Number
+        [string] $Hostname
     )
-
-
-    $ValueCollector = [pscustomobject]@{'Hostname'=$($CVSSource.Hostname); 'OS Version'=$($CVSSource.OperatingSystem); 'AD Status'=$() }
-
+    Try{
+        $ADReturn = Get-ADComputer -Identity (Get-Hostname -CurrentHostname $Hostname)
+    } Catch{
+        $ADReturn = "Cannot find object"
+    }
+    
+    $ValueCollector = [pscustomobject]@{'Hostname'=$($CSVSource[$idx].Hostname); 'OS Version'=$($CSVSource[$idx].OperatingSystem); 'AD Status'=$(If($null -ne $ADReturn.Enabled){Write-Output $ADReturn.Enabled}Else{"Could not find object."})}
+    Write-Host $ValueCollector
     $DataCollector.add($ValueCollector)
 }
 Function Get-Hostname {
@@ -26,20 +31,17 @@ Function Get-Hostname {
                 $HostnameVal = ($CurrentHostname).Substring(0,$CurrentHostname.Length-8)
                 Write-Output "$HostnameVAL"
             } else {
-                # Write-Output "$CurrentHostname"
+
             }
     } else {
         
     }
 }
-# $temp = $("02-08-0913-589L.STO.COM").substring("02-08-0913-589L.STO.COM".length -8)
-
-Get-Hostname -CurrentHostname "TAG1860.STO.COM"
 
 for($idx = 0; $idx -lt 291; $idx++ ) {
-    # Write-Host $CVSSource[$idx].Hostname
-
-    If($null -ne $CVSSource[$idx].Hostname) {
-        Get-Hostname -CurrentHostname $CVSSource[$idx].Hostname
+    If($null -ne $CSVSource[$idx].Hostname) {
+        # Get-Hostname -CurrentHostname $CSVSource[$idx].Hostname
+        Get-ADEnabled -Hostname $CSVSource[$idx].Hostname
     }   
 }
+$DataCollector | export-csv -Path .\Export\Export.csv
